@@ -25,34 +25,37 @@ void setup() {
   strip.show(); // Initialize all pixels to 'off'
   strip.setBrightness(defaultBrightness());
   
-  Particle.subscribe("squarism/blinkwon", eventHandler);
-  setColor(theme);
+  Particle.subscribe("squarism/blinkwon", eventHandler, MY_DEVICES);
+  idle();
 }
 
-void connect() {
-  if (Particle.connected() == false) {
-    Particle.connect();
-  }
-}
 
 void loop() {
-  connect();
-  Particle.process();
-
   if (strcmp(theme, "unknown") == 0 ) {
-    strip.setBrightness(50);
-    dotChase(245, 35, 2);
-  } else {
-    colorRing(colorRotationSlowness);
+    idle();
+  }
+    
+  if (strcmp(theme, "cylon") == 0 ) {
+    colorStart = 0;
+    colorEnd = 255;
+    strip.setBrightness(120);
+    dotChase(90, 45, 3);
+  }
+
+  // rave is currently very broken
+  if (strcmp(theme, "rave") == 0 ) {
+    colorStart = 0;
+    colorEnd = 250;
+    colorRing(40);
   }
 }
 
 int defaultColorRotationSpeed() {
-   return 200; 
+   return 6000; 
 }
 
 int defaultBrightness() {
-    return 210;
+    return 120;
 }
 
 void eventHandler(const char *event, const char *data) {
@@ -64,58 +67,77 @@ void eventHandler(const char *event, const char *data) {
     StaticJsonBuffer<500> jsonBuffer;
     JsonObject& json = jsonBuffer.parseObject(dataCopy);
     
-    if (json.success() && json.containsKey("theme"))
-    {
+    if (json.success()) {
+      if (json.containsKey("brightness"))
+      {
+        strip.setBrightness(json["brightness"]);
+      }
+    
+      if ( json.containsKey("theme"))
+      {
         theme = const_cast<char*>(json["theme"].asString());
         setColor(theme);
-    } 
+      } 
     
-    if (json.success() && json.containsKey("idle"))
-    {
+      if (json.containsKey("idle"))
+      {
         theme = "unknown";
+      }
     }
-    
 }
 
 void setColor(const char *theme) {
     colorRotationSlowness = defaultColorRotationSpeed();
-    strip.setBrightness(defaultBrightness());
     
     // wow, you can't easily do switch statements in C?
     if (strcmp(theme, "green") == 0) {
-        colorStart = 5;
-        colorEnd = 20;
+        colorStart = 15;
+        colorEnd = 35;
+        colorRing(colorRotationSlowness);
     } else if (strcmp(theme, "red") == 0) {
         colorStart = 80;
         colorEnd = 95;
+        colorRing(colorRotationSlowness);
     } else if (strcmp(theme, "blacklight") == 0 ) {
         colorStart = 135;
         colorEnd = 160;
+        colorRing(colorRotationSlowness);
     } else if (strcmp(theme, "yellow") == 0 ) {
         colorStart = 50;
         colorEnd = 70;
+        colorRing(colorRotationSlowness);
     } else if (strcmp(theme, "blue") == 0 ) {
         colorStart = 160;
         colorEnd = 180;
+        colorRing(colorRotationSlowness);
     } else if (strcmp(theme, "bluegreen") == 0 ) {
         colorStart = 190;
         colorEnd = 210;
+        colorRing(colorRotationSlowness);
     } else if (strcmp(theme, "orange") == 0 ) {
         colorStart = 60;
         colorEnd = 80;
+        colorRing(colorRotationSlowness);
     } else if (strcmp(theme, "pink") == 0 ) {
         colorStart = 90;
         colorEnd = 110;
+        colorRing(colorRotationSlowness);
     } else if (strcmp(theme, "rainbow") == 0 ) {
         colorStart = 0;
         colorEnd = 255;
+        colorRing(colorRotationSlowness);
     } else if (strcmp(theme, "off") == 0 ) {
         strip.setBrightness(0);
         colorStart = 1;
         colorStart = 2;
+        colorRing(colorRotationSlowness);
     } else {
-        strip.setBrightness(5);
     }
+}
+
+void idle() {
+    strip.setBrightness(50);
+    dotChase(245, 35, 2);
 }
 
 // Fill the dots one after the other with a color
