@@ -1,0 +1,23 @@
+#!/usr/bin/env zsh
+
+if [ -z "$1" ]; then
+  brightness=60
+else
+  brightness=$1
+fi
+
+# symlink myself to the color name in ~/bin for DRY!
+# cd ~/bin
+# ln -s blinkone_color_control orange
+# ln -s blinkone_color_control bluegreen
+# ln -s blinkone_color_control red
+# ... etc
+me=`basename $0`
+
+if [ "$me" = "off" ]; then
+  curl -s https://api.particle.io/v1/devices/events -d private=true -d name=squarism/blinkwon -d data='{"theme":"off"}' -d access_token=${particle_token} > /dev/null
+else
+  curl -s https://api.particle.io/v1/devices/events -d private=true -d name=squarism/blinkwon -d data='{"brightness":'"${brightness}"',"theme":"'${me}'"}' -d access_token=${particle_token} > /dev/null
+fi
+
+exit && exit

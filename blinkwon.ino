@@ -1,11 +1,17 @@
+// This #include statement was automatically added by the Particle IDE.
+#include <SparkJson.h>
+
+// This #include statement was automatically added by the Particle IDE.
+#include <neopixel.h>
+
 // Hey!
 // Particle IDE put these include lines in but you still have to to do the "Add to App" thing.
-#include "SparkJson/SparkJson.h"
-#include "neopixel/neopixel.h"
+#include <SparkJson.h>
+#include <neopixel.h>
 
 
 // ---- CHANGE THIS ----
-#define PIN 6
+#define PIN D6
 #define LEDS 24
 
 
@@ -16,23 +22,31 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(LEDS, PIN, PIXEL_TYPE);
 int colorStart = 0;
 int colorEnd = 255;
 int colorRotationSlowness = defaultColorRotationSpeed();
+int brightness = defaultBrightness();
 
 char *theme = "unknown";
+
+uint32_t white = strip.Color(255, 255, 255);
+uint32_t black = strip.Color(0, 0, 0);
 
 
 void setup() {
   strip.begin();
+  strip.setBrightness(brightness);
   strip.show(); // Initialize all pixels to 'off'
-  strip.setBrightness(defaultBrightness());
-  
+
+  // subscribe to private events - this finally seems to work like I want.
   Particle.subscribe("squarism/blinkwon", eventHandler, MY_DEVICES);
-  idle();
 }
 
 
 void loop() {
+  // we don't need to call process or connect here
+  // the particle defaults to automatic mode.
+  // more here about it: http://blog.particle.io/2014/08/06/control-the-connection/
+
   if (strcmp(theme, "unknown") == 0 ) {
-    idle();
+    // idle();
   }
     
   if (strcmp(theme, "cylon") == 0 ) {
@@ -40,13 +54,6 @@ void loop() {
     colorEnd = 255;
     strip.setBrightness(120);
     dotChase(90, 45, 3);
-  }
-
-  // rave is currently very broken
-  if (strcmp(theme, "rave") == 0 ) {
-    colorStart = 0;
-    colorEnd = 250;
-    colorRing(40);
   }
 }
 
@@ -70,7 +77,9 @@ void eventHandler(const char *event, const char *data) {
     if (json.success()) {
       if (json.containsKey("brightness"))
       {
-        strip.setBrightness(json["brightness"]);
+        brightness = json["brightness"];
+        strip.setBrightness(brightness);
+        strip.show();
       }
     
       if ( json.containsKey("theme"))
@@ -94,6 +103,10 @@ void setColor(const char *theme) {
         colorStart = 15;
         colorEnd = 35;
         colorRing(colorRotationSlowness);
+    } else if (strcmp(theme, "lime") == 0) {
+        colorStart = 35;
+        colorEnd = 45;
+        colorRing(colorRotationSlowness);
     } else if (strcmp(theme, "red") == 0) {
         colorStart = 80;
         colorEnd = 95;
@@ -111,8 +124,8 @@ void setColor(const char *theme) {
         colorEnd = 180;
         colorRing(colorRotationSlowness);
     } else if (strcmp(theme, "bluegreen") == 0 ) {
-        colorStart = 190;
-        colorEnd = 210;
+        colorStart = 200;
+        colorEnd = 220;
         colorRing(colorRotationSlowness);
     } else if (strcmp(theme, "orange") == 0 ) {
         colorStart = 60;
@@ -127,17 +140,28 @@ void setColor(const char *theme) {
         colorEnd = 255;
         colorRing(colorRotationSlowness);
     } else if (strcmp(theme, "off") == 0 ) {
+        colorWipe(black, 80);
         strip.setBrightness(0);
-        colorStart = 1;
-        colorStart = 2;
-        colorRing(colorRotationSlowness);
-    } else {
+        strip.show();
+    } else if (strcmp(theme, "white") == 0 ) {
+        colorWipe(white, 0);
     }
 }
 
 void idle() {
     strip.setBrightness(50);
     dotChase(245, 35, 2);
+}
+
+// This doesn't work at all.  Need to guard with a boolean maybe?
+void fadeOut(uint8_t wait) {
+    for(uint8_t i=brightness; i >= 0; i--) {
+        strip.setBrightness(i);
+        strip.show();
+        delay(wait);
+    }
+    strip.setBrightness(0);
+    strip.show();
 }
 
 // Fill the dots one after the other with a color
