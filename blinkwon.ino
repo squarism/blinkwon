@@ -23,7 +23,7 @@ int colorEnd = 255;
 int colorRotationSlowness = defaultColorRotationSpeed();
 int brightness = defaultBrightness();
 
-char * theme = "unknown";
+char *theme = "unknown";
 
 uint32_t white = strip.Color(255, 255, 255);
 uint32_t black = strip.Color(0, 0, 0);
