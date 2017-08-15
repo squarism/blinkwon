@@ -10,14 +10,13 @@
 #define PIXEL_TYPE WS2812B
 
 
-// ---- CHANGE THIS ----
+// ---- CHANGE THESE DEPENDING ON YOUR WIRING AND NEOPIXEL HARDWARE ----
 #define PIN D6
 #define LEDS 24
 
 
+// Globals of sorts
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(LEDS, PIN, PIXEL_TYPE);
-
-// status light colors
 int colorStart = 0;
 int colorEnd = 255;
 int colorRotationSlowness = defaultColorRotationSpeed();
