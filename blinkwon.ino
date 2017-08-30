@@ -19,10 +19,11 @@
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(LEDS, PIN, PIXEL_TYPE);
 int colorStart = 0;
 int colorEnd = 255;
-int colorRotationSlowness = defaultColorRotationSpeed();
+
 int brightness = defaultBrightness();
 
 char *theme = "unknown";
+bool isTweeningBrightness = false;
 
 uint32_t white = strip.Color(255, 255, 255);
 uint32_t black = strip.Color(0, 0, 0);
@@ -51,10 +52,6 @@ void loop() {
     // more here about it: http://blog.particle.io/2014/08/06/control-the-connection/
 }
 
-int defaultColorRotationSpeed() {
-    return 6000;
-}
-
 int defaultBrightness() {
     return 120;
 }
@@ -70,19 +67,19 @@ void eventHandler(const char * event, const char * data) {
     if (json.success()) {
         if (json.containsKey("brightness")) {
             int oldBrightness = brightness;
-            brightness = json["brightness"];
-            tweenToBrightness(oldBrightness, (int)brightness, 90);
+            brightness = (int)json["brightness"];
+            tweenToBrightness(oldBrightness, brightness, 1400);
         }
 
         if (json.containsKey("theme")) {
-            theme = const_cast <char*> (json["theme"].asString());
+            const char* theme = (json["theme"].asString());
             if (strcmp(theme, "off") == 0) {
-                tweenToBrightness((int)brightness, 0, 90);
+                tweenToBrightness(brightness, 0, 800);
                 strip.setBrightness(0);
                 strip.show();
                 brightness = 0;
             } else {
-                setColor(theme);
+                setColor(theme, 120);
             }
         }
 
@@ -92,34 +89,29 @@ void eventHandler(const char * event, const char * data) {
     }
 }
 
-void setColor(const char * theme) {
-    colorRotationSlowness = defaultColorRotationSpeed();
-
+void setColor(const char * theme, int wipeSpeed) {
     // wow, you can't easily do switch statements in C?
     if (strcmp(theme, "bluegreen") == 0) {
-        colorWipe(bluegreen, 15);
+        colorWipe(bluegreen, wipeSpeed);
     } else if (strcmp(theme, "white") == 0) {
-        colorWipe(white, 15);
+        colorWipe(white, wipeSpeed);
     } else if (strcmp(theme, "blacklight") == 0) {
-        colorWipe(blacklight, 15);
+        colorWipe(blacklight, wipeSpeed);
     } else if (strcmp(theme, "orange") == 0) {
-        colorWipe(orange, 15);
+        colorWipe(orange, wipeSpeed);
     } else if (strcmp(theme, "yellow") == 0) {
-        colorWipe(yellow, 15);
+        colorWipe(yellow, wipeSpeed);
     } else if (strcmp(theme, "red") == 0) {
-        colorWipe(red, 15);
+        colorWipe(red, wipeSpeed);
     } else if (strcmp(theme, "lime") == 0) {
-        colorWipe(lime, 15);
+        colorWipe(lime, wipeSpeed);
     } else if (strcmp(theme, "blue") == 0) {
-        colorWipe(blue, 15);
+        colorWipe(blue, wipeSpeed);
     } else if (strcmp(theme, "green") == 0) {
-        colorWipe(green, 15);
+        colorWipe(green, wipeSpeed);
     } else if (strcmp(theme, "pink") == 0) {
-        colorWipe(pink, 15);
-    } else if (strcmp(theme, "rainbow") == 0) {
-        colorStart = 0;
-        colorEnd = 255;
-        colorRing(colorRotationSlowness);
+        colorWipe(pink, wipeSpeed);
+
     } else if (strcmp(theme, "cylon") == 0) {
         colorStart = 0;
         colorEnd = 255;
@@ -129,33 +121,31 @@ void setColor(const char * theme) {
 }
 
 // Really tried to DRY this out with clever code, but couldn't get it.
-void tweenToBrightness(int from, int to, uint8_t wait) {
+void tweenToBrightness(int from, int to, int wait) {
     if (from == to) { return; }
+    if (isTweeningBrightness == true) { return; }
 
+    isTweeningBrightness = true;
     if (from < to) {
-        for (int i = from; i < to; i++) {
+        for (int i = from; i <= to; i++) {
             strip.setBrightness(i);
-            strip.show();
+            setColor(theme, 250);
             delay(wait);
         }
     } else {
-        for (int i = from; i > to; i--) {
+        for (int i = from; i >= to; i--) {
             strip.setBrightness(i);
             strip.show();
             delay(wait);
         }
     }
 
+    isTweeningBrightness = false;
     brightness = to;
 }
 
-void idle() {
-    strip.setBrightness(50);
-    dotChase(245, 35, 2);
-}
-
 // Fill the dots one after the other with a color
-void colorWipe(uint32_t c, uint8_t wait) {
+void colorWipe(uint32_t c, uint16_t wait) {
     for (uint16_t i = 0; i < strip.numPixels(); i++) {
         strip.setPixelColor(i, c);
         strip.show();
@@ -163,26 +153,8 @@ void colorWipe(uint32_t c, uint8_t wait) {
     }
 }
 
-void colorRing(uint16_t wait) {
-    uint16_t i, j;
-    for (j = colorStart; j < colorEnd; j++) {
-        for (i = 0; i < strip.numPixels(); i++) {
-            strip.setPixelColor(i, Wheel(j & 255));
-        }
-        strip.show();
-        delay(wait);
-    }
-    for (j = colorEnd; j > colorStart; j--) {
-        for (i = 0; i < strip.numPixels(); i++) {
-            strip.setPixelColor(i, Wheel(j & 255));
-        }
-        strip.show();
-        delay(wait);
-    }
-}
-
 // dot chase visual effect
-void dotChase(uint32_t c, uint8_t wait, int dots) {
+void dotChase(uint32_t c, uint16_t wait, int dots) {
     int offset = LEDS / dots; // pixel separation
     uint32_t color = Wheel(c & 255);
 
@@ -214,3 +186,9 @@ uint32_t Wheel(byte WheelPos) {
         return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
     }
 }
+
+void idle() {
+    strip.setBrightness(50);
+    dotChase(245, 35, 2);
+}
+
