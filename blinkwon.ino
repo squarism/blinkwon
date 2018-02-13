@@ -1,17 +1,19 @@
 // Hey!  Particle IDE put these include lines in but you still have to to do the "Add to App" thing.
 #include <SparkJson.h>
 #include <neopixel.h>
-#define PIXEL_PIN D6
+
+SYSTEM_MODE(SEMI_AUTOMATIC);
 
 // ---- CHANGE THESE DEPENDING ON YOUR WIRING AND NEOPIXEL HARDWARE ----
+#define PIXEL_PIN D6
 
 // SK6812RGBW is RGBW
 // WS2812B are the other ones you own
 #define PIXEL_TYPE WS2812B
 // #define PIXEL_TYPE SK6812RGBW
 
-#define PIXEL_COUNT 24
-// #define PIXEL_COUNT 60
+int PIXEL_COUNT = 24;
+// int PIXEL_COUNT = 60;
 
 
 // Globals of sorts
@@ -22,7 +24,8 @@ int colorEnd = 255;
 int brightness = defaultBrightness();
 
 char *theme = "unknown";
-bool isTweeningBrightness = false;
+
+boolean connectToCloud = false;
 
 uint32_t white = strip.Color(255, 255, 255);
 uint32_t black = strip.Color(0, 0, 0);
@@ -35,7 +38,6 @@ uint32_t yellow = strip.Color(150, 105, 0);
 uint32_t blue = strip.Color(30, 0, 225);
 uint32_t bluegreen = strip.Color(0, 90, 165);
 uint32_t pink = strip.Color(230, 0, 25);
-
 
 static uint8_t getRed(uint32_t c) { return (uint8_t)(c >> 16); }
 static uint8_t getGreen(uint32_t c) { return (uint8_t)(c >>  8); }
@@ -65,15 +67,33 @@ void setup() {
     strip.show();
     
     strip.setBrightness(brightness);
+    
+    Particle.connect();
 
+    String eventChannel;
     // subscribe to private events - this finally seems to work like I want.
-    Particle.subscribe("squarism/blinkwon", eventHandler, MY_DEVICES);
+    if (PIXEL_TYPE == WS2812B  && PIXEL_COUNT == 60) {
+        eventChannel = "squarism/ambient_strip";
+    } else {
+        eventChannel = "squarism/blinkwon";
+    }
+    Particle.subscribe(eventChannel, eventHandler, MY_DEVICES);
 }
 
 void loop() {
     // we don't need to call process or connect here
     // the particle defaults to automatic mode.
     // more here about it: http://blog.particle.io/2014/08/06/control-the-connection/
+    Particle.process();
+    delay(1000);
+    if(connectToCloud && Particle.connected() == false) {
+        Particle.connect();
+        connectToCloud = false;
+    }
+}
+
+void connect() {
+    connectToCloud = true;
 }
 
 int defaultBrightness() {
@@ -103,12 +123,15 @@ void eventHandler(const char * event, const char * data) {
         if (json.containsKey("theme")) {
             const char* theme = (json["theme"].asString());
             if (strcmp(theme, "off") == 0) {
-                tweenToBrightness(brightness, 0, 600);
-                strip.setBrightness(0);
-                strip.show();
                 brightness = 0;
+                Particle.process();
+                setColor("pink", 100);  // arbitrary color because we're turning off
+                strip.setBrightness(0);
+                Particle.process();
             } else {
-                setColor(theme, 240);
+                Particle.process();
+                setColor(theme, 100);
+                Particle.process();
             }
         }
 
@@ -148,30 +171,6 @@ void setColor(const char * theme, int wipeSpeed) {
     }
 }
 
-// Really tried to DRY this out with clever code, but couldn't get it.
-void tweenToBrightness(int from, int to, int wait) {
-    if (from == to) { return; }
-    if (isTweeningBrightness == true) { return; }
-
-    isTweeningBrightness = true;
-    if (from < to) {
-        for (int i = from; i <= to; i++) {
-            strip.setBrightness(i);
-            setColor(theme, 250);
-            delay(wait);
-        }
-    } else {
-        for (int i = from; i >= to; i--) {
-            strip.setBrightness(i);
-            strip.show();
-            delay(wait);
-        }
-    }
-
-    isTweeningBrightness = false;
-    brightness = to;
-}
-
 // Fill the dots one after the other with a color
 void colorWipe(uint32_t color, uint16_t wait) {
     for (uint16_t i = 0; i < strip.numPixels(); i++) {
@@ -187,6 +186,7 @@ void colorWipe(uint32_t color, uint16_t wait) {
         }
         // show immediately in the loop to update the pixel strip as the loop runs, this is how we go down the strip
         strip.show();
+        Particle.process();
         delay(wait);
     }
 }
