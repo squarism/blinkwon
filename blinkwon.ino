@@ -3,17 +3,28 @@
 #include <neopixel.h>
 
 SYSTEM_MODE(SEMI_AUTOMATIC);
+#define MAIN_GROUP 0
+#define ACCENT_GROUP 1
+#define TEST_GROUP 2
+
+
 
 // ---- CHANGE THESE DEPENDING ON YOUR WIRING AND NEOPIXEL HARDWARE ----
 #define PIXEL_PIN D6
 
 // SK6812RGBW is RGBW
 // WS2812B are the other ones you own
-#define PIXEL_TYPE WS2812B
+// #define PIXEL_TYPE WS2812B
 // #define PIXEL_TYPE SK6812RGBW
 
-int PIXEL_COUNT = 24;
+// int PIXEL_COUNT = 24;
 // int PIXEL_COUNT = 60;
+// int PIXEL_COUNT = 120;
+
+// int GROUP = ACCENT_GROUP;
+// int GROUP = MAIN_GROUP;
+// int GROUP = TEST_GROUP;
+
 
 
 // Globals of sorts
@@ -23,20 +34,20 @@ int colorEnd = 255;
 
 int brightness = defaultBrightness();
 
-char *theme = "unknown";
+char theme[15];
 
 boolean connectToCloud = false;
 
-uint32_t white = strip.Color(255, 255, 255);
+uint32_t white = strip.Color(100, 100, 100);
 uint32_t black = strip.Color(0, 0, 0);
 uint32_t green = strip.Color(45, 210, 0);
 uint32_t red = strip.Color(240, 15, 0);
 uint32_t lime = strip.Color(105, 150, 80);
-uint32_t orange = strip.Color(180, 75, 0);
-uint32_t blacklight = strip.Color(105, 0, 150);
+uint32_t orange = strip.Color(180, 45, 0);
+uint32_t blacklight = strip.Color(95, 0, 140);
 uint32_t yellow = strip.Color(150, 105, 0);
 uint32_t blue = strip.Color(30, 0, 225);
-uint32_t bluegreen = strip.Color(0, 90, 165);
+uint32_t bluegreen = strip.Color(0, 110, 165);
 uint32_t pink = strip.Color(230, 0, 25);
 
 static uint8_t getRed(uint32_t c) { return (uint8_t)(c >> 16); }
@@ -45,18 +56,21 @@ static uint8_t getBlue(uint32_t c) { return (uint8_t)c; }
 
 
 void setup() {
+    strcmp(theme, "unknownTheme");
+    
+    // careful with OSH Park PCBs - what is the total budget?  80?
     // red and green are swapped, plus this has white
     if (PIXEL_TYPE == SK6812RGBW) {
-        white = strip.Color(0, 0, 85, 145);
-        blacklight = strip.Color(0, 105, 150, 0);
-        green = strip.Color(210, 45, 0, 0);
-        red = strip.Color(15, 240, 0);
-        lime = strip.Color(150, 105, 80);
-        orange = strip.Color(75, 180, 0);
-        yellow = strip.Color(105, 155, 0);
-        blue = strip.Color(0, 30, 225);
-        bluegreen = strip.Color(90, 0, 165);
-        pink = strip.Color(0, 230, 25);
+        white = strip.Color(0, 0, 0, 80);
+        blacklight = strip.Color(0, 15, 65, 0);
+        green = strip.Color(70, 10, 0, 0);
+        red = strip.Color(5, 75, 0, 0);
+        lime = strip.Color(70, 25, 5, 0);
+        orange = strip.Color(15, 65, 0, 0);
+        yellow = strip.Color(25, 55, 0, 0);
+        blue = strip.Color(0, 5, 75, 0);
+        bluegreen = strip.Color(25, 0, 55, 0);
+        pink = strip.Color(0, 70, 10, 0);
     }
     
     strip.begin();
@@ -71,12 +85,20 @@ void setup() {
     Particle.connect();
 
     String eventChannel;
-    // subscribe to private events - this finally seems to work like I want.
-    if (PIXEL_TYPE == WS2812B  && PIXEL_COUNT == 60) {
-        eventChannel = "squarism/ambient_strip";
-    } else {
+    if (GROUP == MAIN_GROUP) {
         eventChannel = "squarism/blinkwon";
     }
+    
+    if (GROUP == ACCENT_GROUP) {
+        eventChannel = "squarism/ambient_strip";
+    }
+    
+    if (GROUP == TEST_GROUP) {
+        eventChannel = "squarism/test";
+    }
+
+    
+    // subscribe to private events - this finally seems to work like I want.
     Particle.subscribe(eventChannel, eventHandler, MY_DEVICES);
 }
 
@@ -85,10 +107,19 @@ void loop() {
     // the particle defaults to automatic mode.
     // more here about it: http://blog.particle.io/2014/08/06/control-the-connection/
     Particle.process();
-    delay(1000);
+    
     if(connectToCloud && Particle.connected() == false) {
         Particle.connect();
         connectToCloud = false;
+    }
+    
+    if (strcmp(theme, "cylon") == 0) {
+        strip.setBrightness(120);
+        if (PIXEL_TYPE == SK6812RGBW) {
+            dotChase(45, 90, 3);
+        } else {
+            dotChase(90, 45, 3);
+        }
     }
 }
 
@@ -97,7 +128,7 @@ void connect() {
 }
 
 int defaultBrightness() {
-    return 255;
+    return 80;
 }
 
 void eventHandler(const char * event, const char * data) {
@@ -117,26 +148,23 @@ void eventHandler(const char * event, const char * data) {
             // will be 255 and the scaling will be scaling/255.
             // Also attempted but given up on is tweening and fading state as an animation of sorts.
             // Tweening to brightness causes threading type problems to solve.
+            
+            // Careful - The larger strips can't be super bright without crashing because of the PCB boards.
             brightness = (int)json["brightness"];
         }
 
         if (json.containsKey("theme")) {
-            const char* theme = (json["theme"].asString());
+            strcpy(theme, json["theme"].asString());
             if (strcmp(theme, "off") == 0) {
                 brightness = 0;
                 Particle.process();
-                setColor("pink", 100);  // arbitrary color because we're turning off
-                strip.setBrightness(0);
+                blankWipe(100);
                 Particle.process();
             } else {
                 Particle.process();
                 setColor(theme, 100);
                 Particle.process();
             }
-        }
-
-        if (json.containsKey("idle")) {
-            theme = "unknown";
         }
     }
 }
@@ -163,11 +191,6 @@ void setColor(const char * theme, int wipeSpeed) {
         colorWipe(green, wipeSpeed);
     } else if (strcmp(theme, "pink") == 0) {
         colorWipe(pink, wipeSpeed);
-    } else if (strcmp(theme, "cylon") == 0) {
-        colorStart = 0;
-        colorEnd = 255;
-        strip.setBrightness(120);
-        dotChase(90, 45, 3);
     }
 }
 
@@ -177,11 +200,14 @@ void colorWipe(uint32_t color, uint16_t wait) {
         // set the pixel based off unpacked color values and a scaled brightness globalset earlier
         if (PIXEL_TYPE == SK6812RGBW) {
             if (color == white) {
-                strip.setPixelColor(i, 0, 0, 85 * brightness/255, 255 * brightness/255);
+                // huh
+                strip.setColorScaled(i, 0, 0, 0, 255, (255 * brightness/255));
             } else {
-                strip.setPixelColor(i, color);
+                // strip.setColorScaled(num, red, green, blue, white, scaling);
+                strip.setColorScaled(i, getRed(color), getGreen(color), getBlue(color), 0,  brightness);
             }
         } else {
+            // wtf - where is this even coming from
             strip.setColorScaled(i, getRed(color), getGreen(color), getBlue(color), brightness);
         }
         // show immediately in the loop to update the pixel strip as the loop runs, this is how we go down the strip
@@ -190,6 +216,21 @@ void colorWipe(uint32_t color, uint16_t wait) {
         delay(wait);
     }
 }
+
+// Turns all pixels off sequentially
+void blankWipe(uint16_t slowness) {
+    for (uint16_t i = 0; i < strip.numPixels(); i++) {
+        if (PIXEL_TYPE == SK6812RGBW) {
+            strip.setPixelColor(i, strip.Color(0, 0, 0, 0));
+        } else {
+            strip.setPixelColor(i, strip.Color(0, 0, 0));
+        }
+        strip.show();
+        Particle.process();
+        delay(slowness);
+    }
+}
+
 
 // dot chase visual effect
 void dotChase(uint32_t c, uint16_t wait, int dots) {
@@ -223,9 +264,4 @@ uint32_t Wheel(byte WheelPos) {
         WheelPos -= 170;
         return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
     }
-}
-
-void idle() {
-    strip.setBrightness(50);
-    dotChase(245, 35, 2);
 }
