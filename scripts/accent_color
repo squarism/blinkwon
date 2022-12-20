@@ -1,0 +1,41 @@
+#!/usr/bin/env zsh
+
+# ARG1: theme  [blue, white etc]
+# ARG2: brightness [0-255]
+
+if [ -z "$1" ]; then
+  theme="white"
+else
+  theme=$1
+fi
+
+if [ -z "$2" ]; then
+  brightness="60"
+else
+  brightness=$2
+fi
+
+# movie status allows for a switch on ambience_control
+# to override the timing of the theme.  The theme is on a clock or cron
+# schdeule.  When the variable in the particle cloud is "high" or 1
+# then it's movie time!  When it's movie time, disable the schedule.
+# For example, you can dim the lights with a physical button and then
+# it "sticks".  Otherwise, you dim the lights and then the schedule
+# kicks on the theme while you are watching the movie.
+moviestatus=`curl -s "https://api.particle.io/v1/devices/<device id of control node>/movietime?access_token=${PARTICLE_TOKEN}" | jq .result`
+if [ ${moviestatus} -eq 1 ]; then
+  exit
+fi
+
+if [ "$theme" = "off" ]; then
+  curl -s https://api.particle.io/v1/devices/events -d private=true -d name=squarism/ambient_strip -d data='{"theme":"off"}' -d access_token=${PARTICLE_TOKEN} > /dev/null
+else
+  curl -s https://api.particle.io/v1/devices/events \
+    -d private=true \
+    -d name=squarism/ambient_strip \
+    -d data='{"brightness":'"${brightness}"',"theme":"'${theme}'"}' \
+    -d access_token=${PARTICLE_TOKEN} \
+    > /dev/null
+fi
+
+exit && exit

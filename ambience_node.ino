@@ -6,6 +6,7 @@ SYSTEM_MODE(SEMI_AUTOMATIC);
 #define MAIN_GROUP 0
 #define ACCENT_GROUP 1
 #define TEST_GROUP 2
+#define OVERHEAD_GROUP 3
 
 
 
@@ -13,18 +14,24 @@ SYSTEM_MODE(SEMI_AUTOMATIC);
 #define PIXEL_PIN D6
 
 // SK6812RGBW is RGBW
-// WS2812B are the other ones you own
+// WS2812B are the older ones you own
 // #define PIXEL_TYPE WS2812B
-// #define PIXEL_TYPE SK6812RGBW
+#define PIXEL_TYPE SK6812RGBW
 
 // int PIXEL_COUNT = 24;
-// int PIXEL_COUNT = 60;
+int PIXEL_COUNT = 60;
+// int PIXEL_COUNT = 100;
 // int PIXEL_COUNT = 120;
 
-// int GROUP = ACCENT_GROUP;
+int GROUP = ACCENT_GROUP;
 // int GROUP = MAIN_GROUP;
 // int GROUP = TEST_GROUP;
+// int GROUP = OVERHEAD_GROUP;
 
+// the aux strip is fragile, tone down the brightness
+// comment this out for every other one
+double BRIGHTNESS_SCALE = 0.20;
+// double BRIGHTNESS_SCALE = 1.0
 
 
 // Globals of sorts
@@ -41,8 +48,8 @@ boolean connectToCloud = false;
 uint32_t white = strip.Color(100, 100, 100);
 uint32_t black = strip.Color(0, 0, 0);
 uint32_t green = strip.Color(45, 210, 0);
-uint32_t red = strip.Color(240, 15, 0);
-uint32_t lime = strip.Color(105, 150, 80);
+uint32_t red = strip.Color(255, 0, 0);
+uint32_t lime = strip.Color(25, 150, 20);
 uint32_t orange = strip.Color(180, 45, 0);
 uint32_t blacklight = strip.Color(95, 0, 140);
 uint32_t yellow = strip.Color(150, 105, 0);
@@ -50,6 +57,7 @@ uint32_t blue = strip.Color(30, 0, 225);
 uint32_t bluegreen = strip.Color(0, 110, 165);
 uint32_t pink = strip.Color(230, 0, 25);
 
+static uint8_t getWhite(uint32_t c) { return (uint8_t)(c >> 24); }
 static uint8_t getRed(uint32_t c) { return (uint8_t)(c >> 16); }
 static uint8_t getGreen(uint32_t c) { return (uint8_t)(c >>  8); }
 static uint8_t getBlue(uint32_t c) { return (uint8_t)c; }
@@ -61,16 +69,30 @@ void setup() {
     // careful with OSH Park PCBs - what is the total budget?  80?
     // red and green are swapped, plus this has white
     if (PIXEL_TYPE == SK6812RGBW) {
-        white = strip.Color(0, 0, 0, 80);
-        blacklight = strip.Color(0, 15, 65, 0);
+        white = strip.Color(0, 0, 0, 90);
+        blacklight = strip.Color(0, 25, 75, 0);
         green = strip.Color(70, 10, 0, 0);
-        red = strip.Color(5, 75, 0, 0);
+        red = strip.Color(0, 90, 0, 0);
         lime = strip.Color(70, 25, 5, 0);
-        orange = strip.Color(15, 65, 0, 0);
+        orange = strip.Color(5, 65, 0, 0);
         yellow = strip.Color(25, 55, 0, 0);
-        blue = strip.Color(0, 5, 75, 0);
-        bluegreen = strip.Color(25, 0, 55, 0);
-        pink = strip.Color(0, 70, 10, 0);
+        blue = strip.Color(2, 2, 75, 0);
+        bluegreen = strip.Color(35, 0, 65, 0);
+        pink = strip.Color(10, 70, 10, 0);
+    }
+    
+    // overrides for the 60 pixel accent strip that can be brighter
+    if (PIXEL_TYPE == SK6812RGBW && PIXEL_COUNT == 60) {
+        white = strip.Color(0, 0, 0, 255);
+        blacklight = strip.Color(0, 115, 175, 10);
+        green = strip.Color(200, 20, 0, 20);
+        red = strip.Color(0, 255, 0, 0);
+        lime = strip.Color(200, 110, 0, 20);
+        orange = strip.Color(90, 220, 0, 0);
+        yellow = strip.Color(135, 175, 0, 60);
+        blue = strip.Color(0, 0, 255, 2);
+        bluegreen = strip.Color(110, 0, 165, 0);
+        pink = strip.Color(0, 200, 10, 100);
     }
     
     strip.begin();
@@ -80,7 +102,7 @@ void setup() {
     strip.clear();
     strip.show();
     
-    strip.setBrightness(brightness);
+    // strip.setBrightness(brightness);
     
     Particle.connect();
 
@@ -95,6 +117,10 @@ void setup() {
     
     if (GROUP == TEST_GROUP) {
         eventChannel = "squarism/test";
+    }
+
+    if (GROUP == OVERHEAD_GROUP) {
+        eventChannel = "squarism/overhead";
     }
 
     
@@ -128,7 +154,7 @@ void connect() {
 }
 
 int defaultBrightness() {
-    return 80;
+    return 60;
 }
 
 void eventHandler(const char * event, const char * data) {
@@ -150,7 +176,7 @@ void eventHandler(const char * event, const char * data) {
             // Tweening to brightness causes threading type problems to solve.
             
             // Careful - The larger strips can't be super bright without crashing because of the PCB boards.
-            brightness = (int)json["brightness"];
+            brightness = (int)((int)json["brightness"] * BRIGHTNESS_SCALE);
         }
 
         if (json.containsKey("theme")) {
@@ -199,13 +225,12 @@ void colorWipe(uint32_t color, uint16_t wait) {
     for (uint16_t i = 0; i < strip.numPixels(); i++) {
         // set the pixel based off unpacked color values and a scaled brightness globalset earlier
         if (PIXEL_TYPE == SK6812RGBW) {
-            if (color == white) {
+            // if (color == white) {
                 // huh
-                strip.setColorScaled(i, 0, 0, 0, 255, (255 * brightness/255));
-            } else {
-                // strip.setColorScaled(num, red, green, blue, white, scaling);
-                strip.setColorScaled(i, getRed(color), getGreen(color), getBlue(color), 0,  brightness);
-            }
+                // strip.setColorScaled(i, 0, 0, 0, 220, (255 * brightness/255));
+            // } else {
+                strip.setColorScaled(i, getRed(color), getGreen(color), getBlue(color), getWhite(color),  (255 * brightness/255));
+            // }
         } else {
             // wtf - where is this even coming from
             strip.setColorScaled(i, getRed(color), getGreen(color), getBlue(color), brightness);
