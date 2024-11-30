@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 
 # ARG1: theme  [blue, white etc]
 # ARG2: brightness [0-255]
