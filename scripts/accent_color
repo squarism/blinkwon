@@ -3,6 +3,10 @@
 # ARG1: theme  [blue, white etc]
 # ARG2: brightness [0-255]
 
+# cron doesn't run in interactive so we need to source a profile
+# for the PARTICLE_TOKEN API key but bashrc won't work on debian with cron
+source ~/.profile
+
 if [ -z "$1" ]; then
   theme="white"
 else
